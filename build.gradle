@@ -1,0 +1,98 @@
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: 'idea'
+apply plugin: 'maven'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+group 'com.oracle.interview'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+buildscript {
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+        classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.8.2'
+    }
+}
+
+project.ext {
+    props = null
+    versions = [:]
+}
+
+versions += [
+        scalaBase: '2.11',
+        scalaPatch: '8',
+
+        // Must be a valid scalatest version for scala version specified above.
+        scalatest: '3.0.5',
+        scoverage: '1.1.1',
+]
+
+def scalaVersion() {
+    versions.scalaBase + '.' + versions.scalaPatch
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:' + scalaVersion()
+    compile 'org.scala-lang:scala-compiler:' + scalaVersion()
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+def mainClassName = 'com.oracle.interview.Driver'
+
+task run(type: JavaExec, dependsOn: classes) {
+    main = 'com.oracle.interview.Driver'
+    classpath sourceSets.main.runtimeClasspath
+    classpath configurations.runtime
+}
+
+shadowJar {
+    classifier = ''
+
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+
+    append('reference.conf')
+
+    zip64 true
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.14.1'
+}
+
+jar {
+    // reset actions in order to override the jar task
+    deleteAllActions()
+
+    dependsOn shadowJar
+
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}
+
+assemble.dependsOn shadowJar
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
